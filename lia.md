@@ -33,7 +33,7 @@ import: module_templates/macros.md
 
 @onload
 window.codeblocks = [
-`%% SECTION 1
+`%% LOAD POINTCLOUD
 
 clear;
 close all;
@@ -57,12 +57,13 @@ indices = find(pc.Location(:, 2) >= -yBound ...
     & pc.Location(:, 2) <= yBound ...
     & pc.Location(:, 1) >= -xBound ...
     & pc.Location(:, 1) <= xBound);
+`,
 
-% Select the subset of points and display them.
+`% Select the subset of points and display them.
 pc = select(pc, indices);
 view(player, pc);`,
 
-`% Uncomment this if you would like to see the LiDAR pointcloud changing while the vehicle is moving.
+`% display each point cloud in turn to see pc change as vehicle moves.
 for k = 2:length(pcloud)
     pc = pcloud(k).ptCloud;
     
@@ -80,14 +81,12 @@ for k = 2:length(pcloud)
     pause(0.1)
 end`,
 
-`%% SECTION 2
-
+`%% Segment the ground plane from other obstacles
 maxDistance = 0.2; %in metres
 referenceVector = [0, 0, 1];
 [~, inPlanePointIndices, outliers] = pcfitplane(pc, maxDistance, referenceVector);`, 
 
 `% colourize
-
 labelSize = [pc.Count, 1];
 colorLabels = zeros(labelSize, 'single');
 
@@ -109,7 +108,6 @@ colorLabels(inPlanePointIndices) = greenIdx;`,
 pcWithoutGround = select(pc, outliers);
 
 % Declare a “Danger Zone” around the LiDAR
-
 sensorLocation = [0 0 0]; % place the Lidar sensor at the center of coordinate system
 radius = 10; % in meters
 nearIndices = findNeighborsInRadius(pcWithoutGround, sensorLocation, radius);
@@ -133,7 +131,8 @@ selfCube = [pcVehicle.XLimits(1)-delta, pcVehicle.XLimits(2)+delta ...
 
 colorLabels(vehiclePointIndices) = whiteIdx;`,
 
-`player1 = pcplayer(xlimits, ylimits, zlimits);
+`% view segmented cloud
+player1 = pcplayer(xlimits, ylimits, zlimits);
 colormap(player1.Axes, colors)
 
 view(player1, pc.Location, colorLabels);
@@ -205,9 +204,6 @@ This example shows how to configure and use the point cloud player in MATLAB
 </section>
 
 
-
-
-
 # Section 1: Loading
 
 Loading the example and setting up the display
@@ -231,7 +227,7 @@ The file is available [here](01_city_c2s_fcw_10s_Lidar.mat) and should be placed
 [Download the dataset file](01_city_c2s_fcw_10s_Lidar.mat)
 </div>
 
-@displaycodeblock(0)
+@displaycodeblocks(0 1)
 
 
 ## Point Cloud Player
@@ -248,19 +244,47 @@ It is worth discussing what this view shows.
 ![](media/lidarpc_3.png)
 
 
-# Point Cloud Video
+# Section 2: View as a video
 
 Append this code to the end of the previous code to have MATLAB display each point cloud in sequence.
 
-@displaycodeblock(1)
+The point cloud data is presented as a series of frames, much as it would for a standard video. 
+But instead of each frame being a 2D image, each frame is a 3D point cloud.
+
 
 !?["Matlab Point Cloud Video"](media/matlab.mp4)<!--
 autoplay="true"
 muted="true"
 -->
 
+@displaycodeblock(2)
 
-# Section 2: Segmentation
+
+## Motion in pointclouds
+
+<section class="flex-container">
+  <div class="flex-child">
+  <div>
+Although each frame represents a single time point, the reality is that each frame was collected over a period of time. 
+In the case of this dataset, each frame was collected over a period of approximately 0.1 seconds.
+If the vehicle is moving during this collection period, as it was in this case, the result can be an element of distortion in the point cloud. 
+</div>
+<div>
+It is possible to correct for this distortion using a process called motion compensation, but this is beyond the scope of this tutorial.
+But the distortion is visible in the video as a slight skewing of objects in the scene, and more obviously as in that the point rings on the ground do not connect up at the point where the start and end of each frame meet. 
+A point directly behind the vehicle.
+  </div>
+  </div>
+
+  <div class="flex-child" style="min-width: 300px; max-width: 40%">
+    ![a](media/lidar_motion_error.png "Motion Distortion in the Point Cloud")
+  </div>
+</section>
+
+
+
+
+# Section 3: Segmentation
 
 Ground Plane & Nearby Obstacles segmentation.
 
@@ -271,17 +295,14 @@ Identifying and removing the points corresponding to the ground plane allows us 
 * The first step is to identify the ground plane.
   * This is done using the [RANSAC](https://en.wikipedia.org/wiki/Random_sample_consensus) algorithm.
 * We are going to consider the ground points as those points with upward direction (Z plane) < 20cm.
-* The function to fit the ground plane is  __‘__  __pcfitplane__  __\(…\)’__  as seen bellow
-
-@displaycodeblock(2)
-
-## Add Colour Labels
-
+* The function to fit the ground plane is  `pcfitplane(...)`  as seen below:
 
 @displaycodeblock(3)
 
 
+## Add Colour Labels
 
+@displaycodeblock(3)
 
 ## aaa
 
@@ -334,6 +355,14 @@ title(player1.Axes, 'Segmented Point Cloud');
 
 
 
-## Full segmentation code
+## Full code
 
-@displaycodeblocks(0 1 2 3)
+The following sections show the full code for presenting the segmented point cloud as a video and for segmenting the cloud.
+
+### View video
+
+@displaycodeblocks(0 1 2)
+
+### View segmented point cloud
+
+@displaycodeblocks(0 3 4 5 6 7 8)
